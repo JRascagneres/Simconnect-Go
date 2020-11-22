@@ -293,7 +293,7 @@ func (instance *SimconnectInstance) LoadFlightPlan(flightPlanPath string) error 
 }
 
 func NewSimConnect() (*SimconnectInstance, error) {
-	dllPath := filepath.Join("pkg/simconnect", "SimConnects.dll")
+	dllPath := filepath.Join("simconnect", "SimConnect.dll")
 
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
 		buf := MustAsset("SimConnect.dll")
