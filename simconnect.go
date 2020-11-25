@@ -369,6 +369,7 @@ func b2i(b bool) float64 {
 
 func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data *SetSimObjectDataExpose) {
 	InternalSimObjectData := struct {
+		RecvSimobjectDataByType
 		Airspeed  float64 `name:"Airspeed Indicated" unit:"knot"`
 		Altitude  float64 `name:"Plane Altitude" unit:"feet"`
 		Bank      float64 `name:"Plane Bank Degrees"`
@@ -390,12 +391,12 @@ func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data *Se
 		float64(data.Pitch),
 	}
 
-	err := instance.registerDataDefinition(InternalSimObjectData)
+	err := instance.registerDataDefinition(&InternalSimObjectData)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defID, _ := instance.getDefinitionID(InternalSimObjectData)
+	defID, _ := instance.getDefinitionID(&InternalSimObjectData)
 
 	instance.setDataOnSimObject(defID, objectID, 0, 0, 8*8, unsafe.Pointer(&buf[0]))
 }

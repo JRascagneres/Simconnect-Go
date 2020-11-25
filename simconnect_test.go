@@ -24,17 +24,15 @@ func TestWork(t *testing.T) {
 		Pitch:     0,
 	}, i)
 
-	time.Sleep(5 * time.Second)
-
-	instance.SetDataOnSimObject(*objID, &SetSimObjectData{
-		Airspeed: 10,
-		Altitude: 400,
-		//Bank:      0,
-		//Heading:   0,
+	instance.SetDataOnSimObject(*objID, &SetSimObjectDataExpose{
+		Airspeed:  200,
+		Altitude:  400,
+		Bank:      0,
+		Heading:   0,
 		Latitude:  53.34974539799793,
 		Longitude: -2.274003348644879,
-		OnGround:  1,
-		//Pitch:     0,
+		OnGround:  false,
+		Pitch:     10,
 	})
 
 	time.Sleep(10 * time.Second)
