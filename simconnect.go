@@ -46,16 +46,15 @@ type Report struct {
 	Parked              bool      `name:"Plane In Parking State"`
 }
 
-type SetSimObjectData struct {
-	RecvSimobjectDataByType
-	Airspeed float64 `name:"Airspeed Indicated" unit:"knot"`
-	Altitude float64 `name:"Plane Altitude" unit:"feet"`
-	//Bank      float32 `name:"Plane Bank Degrees"`
-	//Heading   float32 `name:"Plane Heading Degrees True"`
-	Latitude  float64 `name:"Plane Latitude" unit:"degrees"`
-	Longitude float64 `name:"Plane Longitude" unit:"degrees"`
-	OnGround  float64 `name:"Sim On Ground" unit:"bool"`
-	//Pitch     float32 `name:"Plane Pitch Degrees"`
+type SetSimObjectDataExpose struct {
+	Airspeed  float64
+	Altitude  float64
+	Bank      float32
+	Heading   float32
+	Latitude  float64
+	Longitude float64
+	OnGround  bool
+	Pitch     float32
 }
 
 var (
@@ -360,32 +359,56 @@ func (instance *SimconnectInstance) LoadNonATCAircraft(containerTitle, tailNumbe
 	objectID := objectIDInterface.(uint32)
 	return &objectID, nil
 }
-func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data *SetSimObjectData) {
-	buf := [5]float64{
+
+func b2i(b bool) float64 {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data *SetSimObjectDataExpose) {
+	InternalSimObjectData := struct {
+		Airspeed  float64 `name:"Airspeed Indicated" unit:"knot"`
+		Altitude  float64 `name:"Plane Altitude" unit:"feet"`
+		Bank      float64 `name:"Plane Bank Degrees"`
+		Heading   float64 `name:"Plane Heading Degrees True"`
+		Latitude  float64 `name:"Plane Latitude" unit:"degrees"`
+		Longitude float64 `name:"Plane Longitude" unit:"degrees"`
+		OnGround  float64 `name:"Sim On Ground" unit:"bool"`
+		Pitch     float64 `name:"Plane Pitch Degrees"`
+	}{}
+
+	buf := [8]float64{
 		data.Airspeed,
 		data.Altitude,
-		//0,
-		//0,
+		float64(data.Bank),
+		float64(data.Heading),
 		data.Latitude,
 		data.Longitude,
-		1,
-		//0,
+		b2i(data.OnGround),
+		float64(data.Pitch),
 	}
 
-	err := instance.registerDataDefinition(data)
+	err := instance.registerDataDefinition(InternalSimObjectData)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defID, _ := instance.getDefinitionID(data)
+	defID, _ := instance.getDefinitionID(InternalSimObjectData)
+
+	instance.setDataOnSimObject(defID, objectID, 0, 0, 8*8, unsafe.Pointer(&buf[0]))
+}
+
+func (instance *SimconnectInstance) setDataOnSimObject(defID, objectID, flags, arrayCount, size uint32, byteArray unsafe.Pointer) {
 	args := []uintptr{
 		uintptr(instance.handle),
 		uintptr(defID),
 		uintptr(objectID),
-		uintptr(0),
-		uintptr(0),
-		uintptr(40),
-		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(flags),
+		uintptr(arrayCount),
+		uintptr(size),
+		uintptr(byteArray),
 	}
 
 	r1, r2, err := procSimconnectSetDataOnSimObject.Call(args...)
