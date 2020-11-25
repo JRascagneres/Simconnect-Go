@@ -367,7 +367,7 @@ func b2i(b bool) float64 {
 	return 0
 }
 
-func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data *SetSimObjectDataExpose) {
+func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data *SetSimObjectDataExpose) error {
 	InternalSimObjectData := struct {
 		RecvSimobjectDataByType
 		Airspeed  float64 `name:"Airspeed Indicated" unit:"knot"`
@@ -393,15 +393,14 @@ func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data *Se
 
 	err := instance.registerDataDefinition(&InternalSimObjectData)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 	defID, _ := instance.getDefinitionID(&InternalSimObjectData)
 
-	instance.setDataOnSimObject(defID, objectID, 0, 0, 8*8, unsafe.Pointer(&buf[0]))
+	return instance.setDataOnSimObject(defID, objectID, 0, 0, uint32(len(buf)*8), unsafe.Pointer(&buf[0]))
 }
 
-func (instance *SimconnectInstance) setDataOnSimObject(defID, objectID, flags, arrayCount, size uint32, byteArray unsafe.Pointer) {
+func (instance *SimconnectInstance) setDataOnSimObject(defID, objectID, flags, arrayCount, size uint32, byteArray unsafe.Pointer) error {
 	args := []uintptr{
 		uintptr(instance.handle),
 		uintptr(defID),
@@ -412,10 +411,12 @@ func (instance *SimconnectInstance) setDataOnSimObject(defID, objectID, flags, a
 		uintptr(byteArray),
 	}
 
-	r1, r2, err := procSimconnectSetDataOnSimObject.Call(args...)
-	fmt.Println(r1)
-	fmt.Println(r2)
-	fmt.Println(err)
+	r1, _, err := procSimconnectSetDataOnSimObject.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf("setDataOnSimObject for objectID %d error: %d %v", objectID, r1, err)
+	}
+
+	return nil
 }
 
 func NewSimConnect() (*SimconnectInstance, error) {
