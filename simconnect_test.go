@@ -1,6 +1,7 @@
 package simconnect
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ func TestWork(t *testing.T) {
 	instance.GetReport()
 
 	i := 10
-	objID, _ := instance.LoadNonATCAircraft("Generic Airliner Twin Engines Asobo 00", "G-42"+strconv.FormatInt(int64(i), 10), SimconnectDataInitPosition{
+	objID, _ := instance.LoadNonATCAircraft("Boeing 747-8i Asobo", "G-42"+strconv.FormatInt(int64(i), 10), SimconnectDataInitPosition{
 		Airspeed:  200,
 		Altitude:  235,
 		Bank:      0,
@@ -35,5 +36,14 @@ func TestWork(t *testing.T) {
 		Pitch:     10,
 	})
 
+	data, _ := instance.GetReportOnObjectID(*objID)
+	fmt.Println(data.Altitude)
 	time.Sleep(10 * time.Second)
+}
+
+func TestWork2(t *testing.T) {
+	instance, _ := NewSimConnect()
+
+	instance.createEnrouteATCAircraft("Boeing 747-8i Asobo", "G-420", 1111111, "C:\\Users\\Jacques\\EGCCLFPG", 0.0, false, 50)
+
 }

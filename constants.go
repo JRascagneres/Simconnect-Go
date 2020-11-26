@@ -69,6 +69,14 @@ const (
 	SIMOBJECT_TYPE_GROUND
 )
 
+const (
+	SIMCONNECT_PERIOD_NEVER uint32 = iota
+	SIMCONNECT_PERIOD_ONCE
+	SIMCONNECT_PERIOD_VISUAL_FRAME
+	SIMCONNECT_PERIOD_SIM_FRAME
+	SIMCONNECT_PERIOD_SECOND
+)
+
 type SimconnectDataInitPosition struct {
 	Latitude  float64
 	Longitude float64

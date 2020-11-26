@@ -58,15 +58,17 @@ type SetSimObjectDataExpose struct {
 }
 
 var (
-	procSimconnectOpen                      *syscall.LazyProc
-	procSimconnectClose                     *syscall.LazyProc
-	procSimconnectRequestDataOnSimObject    *syscall.LazyProc
-	procSimconnectAddtodatadefinition       *syscall.LazyProc
-	procSimconnectGetnextdispatch           *syscall.LazyProc
-	procSimconnectFlightplanLoad            *syscall.LazyProc
-	procSimconnectAICreateParkedATCAircraft *syscall.LazyProc
-	procSimconnectAICreateNonATCAircraft    *syscall.LazyProc
-	procSimconnectSetDataOnSimObject        *syscall.LazyProc
+	procSimconnectOpen                       *syscall.LazyProc
+	procSimconnectClose                      *syscall.LazyProc
+	procSimconnectRequestDataOnSimObjectType *syscall.LazyProc
+	procSimconnectRequestDataOnSimObject     *syscall.LazyProc
+	procSimconnectAddtodatadefinition        *syscall.LazyProc
+	procSimconnectGetnextdispatch            *syscall.LazyProc
+	procSimconnectFlightplanLoad             *syscall.LazyProc
+	procSimconnectAICreateParkedATCAircraft  *syscall.LazyProc
+	procSimconnectAICreateNonATCAircraft     *syscall.LazyProc
+	procSimconnectSetDataOnSimObject         *syscall.LazyProc
+	procSimconnectCreateEnrouteATCAircraft   *syscall.LazyProc
 )
 
 func (instance *SimconnectInstance) getDefinitionID(input interface{}) (defID uint32, created bool) {
@@ -152,10 +154,27 @@ func (instance *SimconnectInstance) requestDataOnSimObjectType(requestID, define
 		uintptr(simObjectType),
 	}
 
-	r1, _, err := procSimconnectRequestDataOnSimObject.Call(args...)
+	r1, _, err := procSimconnectRequestDataOnSimObjectType.Call(args...)
 	if int32(r1) < 0 {
 		return fmt.Errorf("requestData for requestID %d defineID %d error: %d %v",
 			requestID, defineID, r1, err)
+	}
+
+	return nil
+}
+
+func (instance *SimconnectInstance) requestDataOnSimObject(requestID, defineID, objectID, period uint32) error {
+	args := []uintptr{
+		uintptr(instance.handle),
+		uintptr(requestID),
+		uintptr(defineID),
+		uintptr(objectID),
+		uintptr(period),
+	}
+
+	r1, _, err := procSimconnectRequestDataOnSimObject.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf("requestData for requestID %d defineID %d objectID %d error: %d %v", requestID, defineID, objectID, r1, err)
 	}
 
 	return nil
@@ -230,11 +249,15 @@ func (instance *SimconnectInstance) processSimObjectTypeData() (interface{}, err
 			report2 := (*Report)(ppData)
 			return report2, nil
 		}
+	case RECV_ID_SIMOBJECT_DATA:
+		report2 := (*Report)(ppData)
+		return report2, nil
 	case RECV_ID_ASSIGNED_OBJECT_ID:
 		recvData := *(*RecvAssignedObjectID)(ppData)
 		return recvData.ObjectID, nil
 	default:
-		return nil, fmt.Errorf("processSimObjectTypeData() hit default")
+		recvData := *(*RecvSimobjectDataByType)(ppData)
+		return nil, fmt.Errorf("processSimObjectTypeData() hit default recvInfo: %v ppData: %+v", recvInfo, recvData)
 	}
 
 	return nil, fmt.Errorf("FAIL")
@@ -263,6 +286,28 @@ func (instance *SimconnectInstance) GetReport() (*Report, error) {
 	}
 
 	return reportData.(*Report), nil
+}
+
+func (instance *SimconnectInstance) GetReportOnObjectID(objectID uint32) (*Report, error) {
+	report := &Report{}
+	err := instance.registerDataDefinition(report)
+	if err != nil {
+		return nil, err
+	}
+	definitionID, _ := instance.getDefinitionID(report)
+	err = instance.requestDataOnSimObject(definitionID, definitionID, objectID, SIMCONNECT_PERIOD_ONCE)
+
+	if err != nil {
+		return nil, err
+	}
+
+	reportData, err := instance.processSimObjectTypeData()
+	if err != nil {
+		return nil, err
+	}
+
+	return reportData.(*Report), nil
+
 }
 
 func (instance *SimconnectInstance) openConnection() error {
@@ -419,6 +464,33 @@ func (instance *SimconnectInstance) setDataOnSimObject(defID, objectID, flags, a
 	return nil
 }
 
+func (instance *SimconnectInstance) createEnrouteATCAircraft(containerTitle, tailNumber string, flightNumber uint32, flightPlanPath string, flightPlanPosition float64, touchAndGo bool, requestID uint32) error {
+	containerTitleArg := []byte(containerTitle + "\x00")
+	tailNumberArg := []byte(tailNumber + "\x00")
+	flightPlanPathArg := []byte(flightPlanPath + "\x00")
+
+	args := []uintptr{
+		uintptr(instance.handle),
+		uintptr(unsafe.Pointer(&containerTitleArg[0])),
+		uintptr(unsafe.Pointer(&tailNumberArg[0])),
+		uintptr(flightNumber),
+		uintptr(unsafe.Pointer(&flightPlanPathArg[0])),
+		uintptr(flightPlanPosition),
+		uintptr(b2i(touchAndGo)),
+		uintptr(requestID),
+	}
+	r1, r2, err := procSimconnectCreateEnrouteATCAircraft.Call(args...)
+	fmt.Println(r1)
+	fmt.Println(r2)
+	fmt.Println(err)
+	if int32(r1) < 0 {
+		return fmt.Errorf("error: %d %v", r1, err)
+	}
+	instance.processSimObjectTypeData()
+
+	return nil
+}
+
 func NewSimConnect() (*SimconnectInstance, error) {
 	dllPath := filepath.Join("simconnect", "SimConnect.dll")
 
@@ -444,13 +516,15 @@ func NewSimConnect() (*SimconnectInstance, error) {
 
 	procSimconnectOpen = mod.NewProc("SimConnect_Open")
 	procSimconnectClose = mod.NewProc("SimConnect_Close")
-	procSimconnectRequestDataOnSimObject = mod.NewProc("SimConnect_RequestDataOnSimObjectType")
+	procSimconnectRequestDataOnSimObjectType = mod.NewProc("SimConnect_RequestDataOnSimObjectType")
+	procSimconnectRequestDataOnSimObject = mod.NewProc("SimConnect_RequestDataOnSimObject")
 	procSimconnectAddtodatadefinition = mod.NewProc("SimConnect_AddToDataDefinition")
 	procSimconnectGetnextdispatch = mod.NewProc("SimConnect_GetNextDispatch")
 	procSimconnectFlightplanLoad = mod.NewProc("SimConnect_FlightPlanLoad")
 	procSimconnectAICreateParkedATCAircraft = mod.NewProc("SimConnect_AICreateParkedATCAircraft")
 	procSimconnectAICreateNonATCAircraft = mod.NewProc("SimConnect_AICreateNonATCAircraft")
 	procSimconnectSetDataOnSimObject = mod.NewProc("SimConnect_SetDataOnSimObject")
+	procSimconnectCreateEnrouteATCAircraft = mod.NewProc("SimConnect_AICreateEnrouteATCAircraft")
 
 	instance := SimconnectInstance{
 		nextDefinitionID: 0,
