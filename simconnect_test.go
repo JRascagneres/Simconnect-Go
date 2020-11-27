@@ -25,7 +25,9 @@ func TestWork(t *testing.T) {
 		Pitch:     0,
 	}, i)
 
-	instance.SetDataOnSimObject(*objID, &SetSimObjectDataExpose{
+	time.Sleep(10 * time.Second)
+
+	instance.SetDataOnSimObject(*objID, []SetSimObjectDataExpose{{
 		Airspeed:  200,
 		Altitude:  400,
 		Bank:      0,
@@ -34,7 +36,7 @@ func TestWork(t *testing.T) {
 		Longitude: -2.274003348644879,
 		OnGround:  false,
 		Pitch:     10,
-	})
+	}})
 
 	data, _ := instance.GetReportOnObjectID(*objID)
 	fmt.Println(data.Altitude)
@@ -44,6 +46,25 @@ func TestWork(t *testing.T) {
 func TestWork2(t *testing.T) {
 	instance, _ := NewSimConnect()
 
-	instance.createEnrouteATCAircraft("Boeing 747-8i Asobo", "G-420", 1111111, "C:\\Users\\Jacques\\EGCCLFPG", 0.0, false, 50)
+	objID, _ := instance.LoadParkedATCAircraft("Boeing 747-8i Asobo", "G-420", "EGCC", 100)
+
+	time.Sleep(5 * time.Second)
+
+	//instance.setAircraftFlightPlan(*objID)
+
+	//objID, _ := instance.createEnrouteATCAircraft("Boeing 747-8i Asobo", "G-420", 1111111, "C:\\Users\\Jacques\\Desktop\\EGCCLFPG", 0, false, 50)
+	//
+	instance.SetAircraftFlightPlan(*objID, 1000, "C:\\Users\\Jacques\\Desktop\\EGCCLFPG")
+
+	data, _ := instance.GetReportOnObjectID(*objID)
+
+	time.Sleep(5 * time.Second)
+
+	instance.RemoveAIObject(*objID, 10001)
+
+	time.Sleep(60 * time.Second)
+
+	fmt.Println(data.Altitude)
+	time.Sleep(10 * time.Second)
 
 }
