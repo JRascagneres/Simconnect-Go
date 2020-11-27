@@ -69,6 +69,25 @@ const (
 	SIMOBJECT_TYPE_GROUND
 )
 
+const (
+	SIMCONNECT_PERIOD_NEVER uint32 = iota
+	SIMCONNECT_PERIOD_ONCE
+	SIMCONNECT_PERIOD_VISUAL_FRAME
+	SIMCONNECT_PERIOD_SIM_FRAME
+	SIMCONNECT_PERIOD_SECOND
+)
+
+type SimconnectDataInitPosition struct {
+	Latitude  float64
+	Longitude float64
+	Altitude  float64
+	Pitch     float64
+	Bank      float64
+	Heading   float64
+	OnGround  bool
+	Airspeed  uint32
+}
+
 // Receive Data Struct - Used to get basic dispatch info which can then be handled later
 type Recv struct {
 	Size    uint32
@@ -120,6 +139,16 @@ type RecvSimobjectData struct {
 	DefineCount uint32
 }
 
+type RecvAssignedObject struct {
+	Recv
+	RequestID uint32
+	ObjectID  uint32
+}
+
 type RecvSimobjectDataByType struct {
 	RecvSimobjectData
+}
+
+type RecvAssignedObjectID struct {
+	RecvAssignedObject
 }
