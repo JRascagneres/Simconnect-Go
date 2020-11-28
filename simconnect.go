@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 	"unsafe"
+
+	simconnect_data "github.com/JRascagneres/Simconnect-Go/simconnect-data"
 )
 
 type SimconnectInstance struct {
@@ -17,8 +19,9 @@ type SimconnectInstance struct {
 	nextDefinitionID uint32
 }
 
+// Report contains data for a given sim object
 type Report struct {
-	RecvSimobjectDataByType
+	simconnect_data.RecvSimobjectDataByType
 	Title               [256]byte `name:"Title"`
 	Kohlsman            float64   `name:"Kohlsman setting hg" unit:"inHg"`
 	Altitude            float64   `name:"Plane Altitude" unit:"feet"`
@@ -196,7 +199,7 @@ func (instance *SimconnectInstance) getData() (unsafe.Pointer, error) {
 		return nil, fmt.Errorf("GetNextDispatch error: %d %v", r1, err)
 	}
 
-	if uint32(r1) == E_FAIL {
+	if uint32(r1) == simconnect_data.E_FAIL {
 		// No new message
 		return nil, nil
 	}
@@ -204,7 +207,7 @@ func (instance *SimconnectInstance) getData() (unsafe.Pointer, error) {
 	return ppData, nil
 }
 
-func (instance *SimconnectInstance) processData() (unsafe.Pointer, *Recv, error) {
+func (instance *SimconnectInstance) processData() (unsafe.Pointer, *simconnect_data.Recv, error) {
 	for {
 		time.Sleep(100 * time.Millisecond)
 		ppData, err := instance.getData()
@@ -216,7 +219,7 @@ func (instance *SimconnectInstance) processData() (unsafe.Pointer, *Recv, error)
 			continue
 		}
 
-		recvInfo := (*Recv)(ppData)
+		recvInfo := (*simconnect_data.Recv)(ppData)
 		return ppData, recvInfo, nil
 	}
 }
@@ -227,10 +230,10 @@ func (instance *SimconnectInstance) processConnectionOpenData() error {
 		return err
 	}
 	switch recvInfo.ID {
-	case RECV_ID_EXCEPTION:
+	case simconnect_data.RECV_ID_EXCEPTION:
 		return fmt.Errorf("received exception")
-	case RECV_ID_OPEN:
-		recvOpen := *(*RecvOpen)(ppData)
+	case simconnect_data.RECV_ID_OPEN:
+		recvOpen := *(*simconnect_data.RecvOpen)(ppData)
 		fmt.Println("SIMCONNECT_RECV_ID_OPEN", fmt.Sprintf("%s", recvOpen.ApplicationName))
 		return nil
 	default:
@@ -244,27 +247,28 @@ func (instance *SimconnectInstance) processSimObjectTypeData() (interface{}, err
 		return nil, err
 	}
 	switch recvInfo.ID {
-	case RECV_ID_SIMOBJECT_DATA_BYTYPE:
-		recvData := *(*RecvSimobjectDataByType)(ppData)
+	case simconnect_data.RECV_ID_SIMOBJECT_DATA_BYTYPE:
+		recvData := *(*simconnect_data.RecvSimobjectDataByType)(ppData)
 		switch recvData.RequestID {
 		case instance.definitionMap["Report"]:
 			report2 := (*Report)(ppData)
 			return report2, nil
 		}
-	case RECV_ID_SIMOBJECT_DATA:
+	case simconnect_data.RECV_ID_SIMOBJECT_DATA:
 		report2 := (*Report)(ppData)
 		return report2, nil
-	case RECV_ID_ASSIGNED_OBJECT_ID:
-		recvData := *(*RecvAssignedObjectID)(ppData)
+	case simconnect_data.RECV_ID_ASSIGNED_OBJECT_ID:
+		recvData := *(*simconnect_data.RecvAssignedObjectID)(ppData)
 		return recvData.ObjectID, nil
 	default:
-		recvData := *(*RecvSimobjectDataByType)(ppData)
+		recvData := *(*simconnect_data.RecvSimobjectDataByType)(ppData)
 		return nil, fmt.Errorf("processSimObjectTypeData() hit default recvInfo: %v ppData: %+v", recvInfo, recvData)
 	}
 
 	return nil, fmt.Errorf("FAIL")
 }
 
+// GetReport returns Report struct containing current user data
 func (instance *SimconnectInstance) GetReport() (*Report, error) {
 	report := &Report{}
 	err := instance.registerDataDefinition(report)
@@ -276,7 +280,7 @@ func (instance *SimconnectInstance) GetReport() (*Report, error) {
 		definitionID,
 		definitionID,
 		0,
-		SIMOBJECT_TYPE_USER,
+		simconnect_data.SIMOBJECT_TYPE_USER,
 	)
 	if err != nil {
 		return nil, err
@@ -290,6 +294,7 @@ func (instance *SimconnectInstance) GetReport() (*Report, error) {
 	return reportData.(*Report), nil
 }
 
+// GetReportOnObjectID returns a Report struct containing the data for the Object ID passed in
 func (instance *SimconnectInstance) GetReportOnObjectID(objectID uint32) (*Report, error) {
 	report := &Report{}
 	err := instance.registerDataDefinition(report)
@@ -297,7 +302,7 @@ func (instance *SimconnectInstance) GetReportOnObjectID(objectID uint32) (*Repor
 		return nil, err
 	}
 	definitionID, _ := instance.getDefinitionID(report)
-	err = instance.requestDataOnSimObject(definitionID, definitionID, objectID, SIMCONNECT_PERIOD_ONCE)
+	err = instance.requestDataOnSimObject(definitionID, definitionID, objectID, simconnect_data.SIMCONNECT_PERIOD_ONCE)
 
 	if err != nil {
 		return nil, err
@@ -338,11 +343,13 @@ func (instance *SimconnectInstance) closeConnection() error {
 	return nil
 }
 
-// Public call to closeConnection () - In case we need to modify behaviour later
+// Close will end the connection to the SimConnect API
 func (instance *SimconnectInstance) Close() error {
 	return instance.closeConnection()
 }
 
+// LoadFlightPlan will load the supplied flight plan path into the users aircraft. FlightPlanPath must be a pln but the
+// .pln extension must not be supplied with the flight plan.
 func (instance *SimconnectInstance) LoadFlightPlan(flightPlanPath string) error {
 
 	flightPlanPathArg := []byte(flightPlanPath + "\x00")
@@ -359,6 +366,7 @@ func (instance *SimconnectInstance) LoadFlightPlan(flightPlanPath string) error 
 	return nil
 }
 
+// LoadParkedATCAircraft will load a parked ATC aircraft with the specified parameters. See SimConnect API reference.
 func (instance *SimconnectInstance) LoadParkedATCAircraft(containerTitle, tailNumber, airportICAO string, requestID int) (*uint32, error) {
 	containerTitleArg := []byte(containerTitle + "\x00")
 	tailNumberArg := []byte(tailNumber + "\x00")
@@ -383,7 +391,8 @@ func (instance *SimconnectInstance) LoadParkedATCAircraft(containerTitle, tailNu
 	return &objectID, nil
 }
 
-func (instance *SimconnectInstance) LoadNonATCAircraft(containerTitle, tailNumber string, initPos SimconnectDataInitPosition, requestID int) (*uint32, error) {
+// LoadNonATCAircraft will load a non ATC (vfr) aircraft with the specified parameters. See SimConnect API reference.
+func (instance *SimconnectInstance) LoadNonATCAircraft(containerTitle, tailNumber string, initPos simconnect_data.SimconnectDataInitPosition, requestID int) (*uint32, error) {
 	containerTitleArg := []byte(containerTitle + "\x00")
 	tailNumberArg := []byte(tailNumber + "\x00")
 
@@ -414,9 +423,11 @@ func b2i(b bool) float64 {
 	return 0
 }
 
+// SetDataOnSimObject allows you to set data for a given sim object, 0 can be used to apply the data to the users
+// aircraft. See SimConnect API reference.
 func (instance *SimconnectInstance) SetDataOnSimObject(objectID uint32, data []SetSimObjectDataExpose) error {
 	InternalSimObjectData := struct {
-		RecvSimobjectDataByType
+		simconnect_data.RecvSimobjectDataByType
 		Airspeed  float64 `name:"Airspeed Indicated" unit:"knot"`
 		Altitude  float64 `name:"Plane Altitude" unit:"feet"`
 		Bank      float64 `name:"Plane Bank Degrees"`
@@ -471,6 +482,8 @@ func (instance *SimconnectInstance) setDataOnSimObject(defID, objectID, flags, a
 	return nil
 }
 
+// CreateEnrouteATCAircraft allows you to create an ATC already part way through its flight plan. See SimConnect API
+// reference.
 func (instance *SimconnectInstance) CreateEnrouteATCAircraft(containerTitle, tailNumber string, flightNumber uint32, flightPlanPath string, flightPlanPosition float32, touchAndGo bool, requestID uint32) (*uint32, error) {
 	containerTitleArg := []byte(containerTitle + "\x00")
 	tailNumberArg := []byte(tailNumber + "\x00")
@@ -500,6 +513,7 @@ func (instance *SimconnectInstance) CreateEnrouteATCAircraft(containerTitle, tai
 	return &objectID, nil
 }
 
+// SetAircraftFlightPlan allows you to set a flight plan for an existing aircraft. See SimConnect API reference.
 func (instance *SimconnectInstance) SetAircraftFlightPlan(objectID, requestID uint32, flightPlanPath string) error {
 	pathArg := []byte(flightPlanPath + "\x00")
 
@@ -518,6 +532,7 @@ func (instance *SimconnectInstance) SetAircraftFlightPlan(objectID, requestID ui
 	return nil
 }
 
+// RemoveAIObject will remove an AI object from the sim. See SimConnect API reference.
 func (instance *SimconnectInstance) RemoveAIObject(objectID, requestID uint32) error {
 	args := []uintptr{
 		uintptr(instance.handle),
@@ -533,11 +548,12 @@ func (instance *SimconnectInstance) RemoveAIObject(objectID, requestID uint32) e
 	return nil
 }
 
+// NewSimConnect returns a new instance of SimConnect which will be used to call the methods.
 func NewSimConnect() (*SimconnectInstance, error) {
-	dllPath := filepath.Join("simconnect", "SimConnect.dll")
+	dllPath := filepath.Join("simconnect-data", "SimConnect.dll")
 
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
-		buf := MustAsset("SimConnect.dll")
+		buf := simconnect_data.MustAsset("SimConnect.dll")
 
 		dir, err := ioutil.TempDir("", "")
 		if err != nil {

@@ -2,7 +2,7 @@
 // sources:
 // SimConnect.dll (58.368kB)
 
-package simconnect
+package simconnect_data
 
 import (
 	"bytes"

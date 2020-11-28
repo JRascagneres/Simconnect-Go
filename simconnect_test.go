@@ -5,7 +5,25 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	simconnect_data "github.com/JRascagneres/Simconnect-Go/simconnect-data"
 )
+
+func TestExample(t *testing.T) {
+	instance, err := NewSimConnect()
+	if err != nil {
+		panic(err)
+	}
+
+	report, err := instance.GetReport()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("User Altitude: %f\n", report.Altitude)
+
+	err = instance.Close()
+}
 
 // These aren't 'real' tests. This is simply for testing easily within the game.
 func TestWork(t *testing.T) {
@@ -14,7 +32,7 @@ func TestWork(t *testing.T) {
 	instance.GetReport()
 
 	i := 10
-	objID, _ := instance.LoadNonATCAircraft("Boeing 747-8i Asobo", "G-42"+strconv.FormatInt(int64(i), 10), SimconnectDataInitPosition{
+	objID, _ := instance.LoadNonATCAircraft("Boeing 747-8i Asobo", "G-42"+strconv.FormatInt(int64(i), 10), simconnect_data.SimconnectDataInitPosition{
 		Airspeed:  200,
 		Altitude:  235,
 		Bank:      0,

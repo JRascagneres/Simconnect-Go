@@ -1,4 +1,4 @@
-package simconnect
+package simconnect_data
 
 // Exception Fail ID
 const E_FAIL uint32 = 0x80004005
