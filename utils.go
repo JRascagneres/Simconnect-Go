@@ -1,7 +1,9 @@
 package simconnect
 
 import (
+	"errors"
 	"fmt"
+	"time"
 
 	simconnect_data "github.com/JRascagneres/Simconnect-Go/simconnect-data"
 )
@@ -34,4 +36,23 @@ func derefDataType(fieldType string) (uint32, error) {
 	}
 
 	return dataType, nil
+}
+
+func retryFunc(maxRetryCount int, waitDuration time.Duration, dataFunc func() (bool, error)) error {
+	numAttempts := 1
+
+	for {
+		shouldRetry, _ := dataFunc()
+		if !shouldRetry {
+			return nil
+		}
+
+		numAttempts++
+
+		if numAttempts == maxRetryCount {
+			return errors.New("timeout exceeded err")
+		}
+
+		time.Sleep(waitDuration)
+	}
 }

@@ -1,11 +1,13 @@
 package simconnect
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -17,6 +19,8 @@ type SimconnectInstance struct {
 	handle           unsafe.Pointer // handle
 	definitionMap    map[string]uint32
 	nextDefinitionID uint32
+
+	definitionMapMutex sync.Mutex
 }
 
 // Report contains data for a given sim object
@@ -78,6 +82,9 @@ var (
 
 func (instance *SimconnectInstance) getDefinitionID(input interface{}) (defID uint32, created bool) {
 	structName := reflect.TypeOf(input).Elem().Name()
+
+	instance.definitionMapMutex.Lock()
+	defer instance.definitionMapMutex.Unlock()
 
 	id, ok := instance.definitionMap[structName]
 	if !ok {
@@ -208,20 +215,32 @@ func (instance *SimconnectInstance) getData() (unsafe.Pointer, error) {
 }
 
 func (instance *SimconnectInstance) processData() (unsafe.Pointer, *simconnect_data.Recv, error) {
-	for {
-		time.Sleep(100 * time.Millisecond)
-		ppData, err := instance.getData()
+	var ppData unsafe.Pointer
+	var err error
+	var recvInfo *simconnect_data.Recv
+	loopErr := retryFunc(20, time.Millisecond*20, func() (bool, error) {
+
+		ppData, err = instance.getData()
 		if err != nil {
-			return nil, nil, err
+			return true, nil
 		}
 		if ppData == nil {
-			fmt.Println("Retrying....")
-			continue
+			return true, err
 		}
 
-		recvInfo := (*simconnect_data.Recv)(ppData)
-		return ppData, recvInfo, nil
+		recvInfo = (*simconnect_data.Recv)(ppData)
+
+		if recvInfo.ID == simconnect_data.RECV_ID_EXCEPTION {
+			return true, errors.New("exception")
+		}
+
+		return false, nil
+	})
+	if loopErr != nil {
+		return nil, nil, loopErr
 	}
+
+	return ppData, recvInfo, nil
 }
 
 func (instance *SimconnectInstance) processConnectionOpenData() error {
@@ -249,6 +268,10 @@ func (instance *SimconnectInstance) processSimObjectTypeData() (interface{}, err
 	switch recvInfo.ID {
 	case simconnect_data.RECV_ID_SIMOBJECT_DATA_BYTYPE:
 		recvData := *(*simconnect_data.RecvSimobjectDataByType)(ppData)
+
+		instance.definitionMapMutex.Lock()
+		defer instance.definitionMapMutex.Unlock()
+
 		switch recvData.RequestID {
 		case instance.definitionMap["Report"]:
 			report2 := (*Report)(ppData)
@@ -317,10 +340,10 @@ func (instance *SimconnectInstance) GetReportOnObjectID(objectID uint32) (*Repor
 
 }
 
-func (instance *SimconnectInstance) openConnection() error {
+func (instance *SimconnectInstance) openConnection(simconnectName string) error {
 	args := []uintptr{
 		uintptr(unsafe.Pointer(&instance.handle)),
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr("test"))),
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(simconnectName))),
 		0,
 		0,
 		0,
@@ -549,7 +572,7 @@ func (instance *SimconnectInstance) RemoveAIObject(objectID, requestID uint32) e
 }
 
 // NewSimConnect returns a new instance of SimConnect which will be used to call the methods.
-func NewSimConnect() (*SimconnectInstance, error) {
+func NewSimConnect(simconnectName string) (*SimconnectInstance, error) {
 	dllPath := filepath.Join("simconnect-data", "SimConnect.dll")
 
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
@@ -591,7 +614,7 @@ func NewSimConnect() (*SimconnectInstance, error) {
 		definitionMap:    map[string]uint32{},
 	}
 
-	err = instance.openConnection()
+	err = instance.openConnection(simconnectName)
 	if err != nil {
 		return nil, err
 	}
