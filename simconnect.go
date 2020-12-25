@@ -13,6 +13,8 @@ import (
 	"unsafe"
 
 	simconnect_data "github.com/JRascagneres/Simconnect-Go/simconnect-data"
+
+	_ "embed"
 )
 
 type SimconnectInstance struct {
@@ -42,6 +44,8 @@ type Report struct {
 	Bank                float32   `name:"Plane Bank Degrees"`
 	GForce              float32   `name:"G Force"`
 	VerticalSpeed       float32   `name:"Velocity World Y" unit:"Feet per second"`
+	VerticalSpeedTwo    float32   `name:"VELOCITY BODY Y" unit:"Feet per second"`
+	VerticalSpeedThree  float32   `name:"VERTICAL SPEED" unit:"Feet per second"`
 	FuelTotal           float32   `name:"Fuel Total Quantity Weight" unit:"kg"`
 	WindSpeed           float32   `name:"Ambient Wind Velocity" unit:"knot"`
 	WindDirection       float32   `name:"Ambient Wind Direction" unit:"radians"`
@@ -576,7 +580,8 @@ func NewSimConnect(simconnectName string) (*SimconnectInstance, error) {
 	dllPath := filepath.Join("simconnect-data", "SimConnect.dll")
 
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
-		buf := simconnect_data.MustAsset("SimConnect.dll")
+		//go:embed "simconnect-data/SimConnect.dll"
+		var buf []byte
 
 		dir, err := ioutil.TempDir("", "")
 		if err != nil {

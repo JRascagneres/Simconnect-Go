@@ -10,7 +10,7 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	instance, err := NewSimConnect()
+	instance, err := NewSimConnect("data")
 	if err != nil {
 		panic(err)
 	}
@@ -27,7 +27,7 @@ func TestExample(t *testing.T) {
 
 // These aren't 'real' tests. This is simply for testing easily within the game.
 func TestWork(t *testing.T) {
-	instance, _ := NewSimConnect()
+	instance, _ := NewSimConnect("data")
 
 	instance.GetReport()
 
@@ -62,7 +62,7 @@ func TestWork(t *testing.T) {
 }
 
 func TestWork2(t *testing.T) {
-	instance, _ := NewSimConnect()
+	instance, _ := NewSimConnect("data")
 
 	objID, _ := instance.LoadParkedATCAircraft("Boeing 747-8i Asobo", "G-420", "EGCC", 100)
 
