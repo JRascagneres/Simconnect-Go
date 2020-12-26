@@ -28,33 +28,32 @@ type SimconnectInstance struct {
 // Report contains data for a given sim object
 type Report struct {
 	simconnect_data.RecvSimobjectDataByType
-	Title               [256]byte `name:"Title"`
-	Kohlsman            float64   `name:"Kohlsman setting hg" unit:"inHg"`
-	Altitude            float64   `name:"Plane Altitude" unit:"feet"`
-	AltitudeAboveGround float64   `name:"Plane Alt Above Ground" unit:"feet"`
-	Latitude            float64   `name:"Plane Latitude" unit:"degrees"`
-	Longitude           float64   `name:"Plane Longitude" unit:"degrees"`
-	Airspeed            float64   `name:"Airspeed Indicated" unit:"knot"`
-	AirspeedBarberPole  float64   `name:"Airspeed Barber Pole" unit:"knot"`
-	GroundSpeed         float64   `name:"Ground Velocity" unit:"knots"`
-	OnGround            bool      `name:"Sim On Ground" unit:"bool"`
-	Heading             float32   `name:"Plane Heading Degrees True"`
-	HeadingMag          float32   `name:"Plane Heading Degrees Magnetic"`
-	Pitch               float32   `name:"Plane Pitch Degrees"`
-	Bank                float32   `name:"Plane Bank Degrees"`
-	GForce              float32   `name:"G Force"`
-	VerticalSpeed       float32   `name:"Velocity World Y" unit:"Feet per second"`
-	VerticalSpeedTwo    float32   `name:"VELOCITY BODY Y" unit:"Feet per second"`
-	VerticalSpeedThree  float32   `name:"VERTICAL SPEED" unit:"Feet per second"`
-	FuelTotal           float32   `name:"Fuel Total Quantity Weight" unit:"kg"`
-	WindSpeed           float32   `name:"Ambient Wind Velocity" unit:"knot"`
-	WindDirection       float32   `name:"Ambient Wind Direction" unit:"radians"`
-	FuelCapacity        float32   `name:"FUEL TOTAL CAPACITY" unit:"gallons"`
-	FuelWeightPerGallon float32   `name:"FUEL WEIGHT PER GALLON" unit:"kg"`
-	FuelFlow            float32   `name:"ESTIMATED FUEL FLOW" unit:"kilograms per second"`
-	AmbientTemperature  float32   `name:"Ambient Temperature" unit:"Celsius"`
-	AmbientPressure     float32   `name:"Ambient Pressure" unit:"inHg"`
-	Parked              bool      `name:"Plane In Parking State"`
+	Title                        [256]byte `name:"Title"`
+	Kohlsman                     float64   `name:"Kohlsman setting hg" unit:"inHg"`
+	Altitude                     float64   `name:"Plane Altitude" unit:"feet"`
+	AltitudeAboveGround          float64   `name:"Plane Alt Above Ground" unit:"feet"`
+	Latitude                     float64   `name:"Plane Latitude" unit:"degrees"`
+	Longitude                    float64   `name:"Plane Longitude" unit:"degrees"`
+	Airspeed                     float64   `name:"Airspeed Indicated" unit:"knot"`
+	AirspeedBarberPole           float64   `name:"Airspeed Barber Pole" unit:"knot"`
+	GroundSpeed                  float64   `name:"Ground Velocity" unit:"knots"`
+	OnGround                     bool      `name:"Sim On Ground" unit:"bool"`
+	Heading                      float32   `name:"Plane Heading Degrees True"`
+	HeadingMag                   float32   `name:"Plane Heading Degrees Magnetic"`
+	Pitch                        float32   `name:"Plane Pitch Degrees"`
+	Bank                         float32   `name:"Plane Bank Degrees"`
+	GForce                       float32   `name:"G Force"`
+	VerticalSpeedRelativeToWorld float32   `name:"Velocity World Y" unit:"Feet per second"`
+	VerticalSpeedAircraft        float32   `name:"Vertical Speed" unit:"Feet per second"`
+	FuelTotal                    float32   `name:"Fuel Total Quantity Weight" unit:"kg"`
+	WindSpeed                    float32   `name:"Ambient Wind Velocity" unit:"knot"`
+	WindDirection                float32   `name:"Ambient Wind Direction" unit:"radians"`
+	FuelCapacity                 float32   `name:"FUEL TOTAL CAPACITY" unit:"gallons"`
+	FuelWeightPerGallon          float32   `name:"FUEL WEIGHT PER GALLON" unit:"kg"`
+	FuelFlow                     float32   `name:"ESTIMATED FUEL FLOW" unit:"kilograms per second"`
+	AmbientTemperature           float32   `name:"Ambient Temperature" unit:"Celsius"`
+	AmbientPressure              float32   `name:"Ambient Pressure" unit:"inHg"`
+	Parked                       bool      `name:"Plane In Parking State"`
 }
 
 type SetSimObjectDataExpose struct {
