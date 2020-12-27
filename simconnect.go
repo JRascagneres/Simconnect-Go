@@ -29,6 +29,9 @@ type SimconnectInstance struct {
 type Report struct {
 	simconnect_data.RecvSimobjectDataByType
 	Title                        [256]byte `name:"Title"`
+	ATCAirline                   [128]byte `name:"ATC Airline"`
+	ATCFlightNumber              [128]byte `name:"ATC Flight Number"`
+	ATCID                        [128]byte `name:"ATC ID"`
 	Kohlsman                     float64   `name:"Kohlsman setting hg" unit:"inHg"`
 	Altitude                     float64   `name:"Plane Altitude" unit:"feet"`
 	AltitudeAboveGround          float64   `name:"Plane Alt Above Ground" unit:"feet"`
