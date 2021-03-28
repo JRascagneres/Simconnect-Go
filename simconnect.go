@@ -61,6 +61,7 @@ type Report struct {
 	Engine2Combustion            int32     `name:"General Eng Combustion:2" unit:"bool"`
 	Engine3Combustion            int32     `name:"General Eng Combustion:3" unit:"bool"`
 	Engine4Combustion            int32     `name:"General Eng Combustion:4" unit:"bool"`
+	EngineCount                  int32     `name:"Number Of Engines"`
 }
 
 type SetSimObjectDataExpose struct {

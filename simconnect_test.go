@@ -24,6 +24,7 @@ func TestExample(t *testing.T) {
 	fmt.Printf("Eng 2: %v\n", report.Engine2Combustion)
 	fmt.Printf("Eng 3: %v\n", report.Engine3Combustion)
 	fmt.Printf("Eng 4: %v\n", report.Engine4Combustion)
+	fmt.Printf("Engine Count: %v\n", report.EngineCount)
 
 	err = instance.Close()
 	assert.NoError(t, err)
