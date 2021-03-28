@@ -40,7 +40,7 @@ type Report struct {
 	Airspeed                     float64   `name:"Airspeed Indicated" unit:"knot"`
 	AirspeedBarberPole           float64   `name:"Airspeed Barber Pole" unit:"knot"`
 	GroundSpeed                  float64   `name:"Ground Velocity" unit:"knots"`
-	OnGround                     bool      `name:"Sim On Ground" unit:"bool"`
+	OnGround                     int32     `name:"Sim On Ground" unit:"bool"`
 	Heading                      float32   `name:"Plane Heading Degrees True"`
 	HeadingMag                   float32   `name:"Plane Heading Degrees Magnetic"`
 	Pitch                        float32   `name:"Plane Pitch Degrees"`
@@ -56,7 +56,9 @@ type Report struct {
 	FuelFlow                     float32   `name:"ESTIMATED FUEL FLOW" unit:"kilograms per second"`
 	AmbientTemperature           float32   `name:"Ambient Temperature" unit:"Celsius"`
 	AmbientPressure              float32   `name:"Ambient Pressure" unit:"inHg"`
-	Parked                       bool      `name:"Plane In Parking State"`
+	Engine1Combustion            int32     `name:"General Eng Combustion:1" unit:"Bool"`
+	Engine2Combustion            int32     `name:"General Eng Combustion:2" unit:"Bool"`
+	Parked                       bool      `name:"Plane In Parking State" unit:"bool"`
 }
 
 type SetSimObjectDataExpose struct {
@@ -280,7 +282,17 @@ func (instance *SimconnectInstance) processSimObjectTypeData() (interface{}, err
 
 		switch recvData.RequestID {
 		case instance.definitionMap["Report"]:
+
+			buf := make([]byte, recvData.Size)
+			copy(buf, (*[1 << 30]byte)(ppData)[:recvData.Size:recvData.Size])
+
+			offset := int(unsafe.Offsetof(recvData.Data))
+
+			fmt.Println(string(buf[offset : offset+256]))
+			fmt.Println(string(buf[257:384]))
+
 			report2 := (*Report)(ppData)
+
 			return report2, nil
 		}
 	case simconnect_data.RECV_ID_SIMOBJECT_DATA:

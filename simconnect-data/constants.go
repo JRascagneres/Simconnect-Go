@@ -137,6 +137,7 @@ type RecvSimobjectData struct {
 	EntryNumber uint32
 	OutOf       uint32
 	DefineCount uint32
+	Data        []byte
 }
 
 type RecvAssignedObject struct {
