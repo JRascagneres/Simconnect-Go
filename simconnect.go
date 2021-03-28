@@ -40,7 +40,7 @@ type Report struct {
 	Airspeed                     float64   `name:"Airspeed Indicated" unit:"knot"`
 	AirspeedBarberPole           float64   `name:"Airspeed Barber Pole" unit:"knot"`
 	GroundSpeed                  float64   `name:"Ground Velocity" unit:"knots"`
-	OnGround                     bool      `name:"Sim On Ground" unit:"bool"`
+	OnGround                     int32     `name:"Sim On Ground" unit:"bool"`
 	Heading                      float32   `name:"Plane Heading Degrees True"`
 	HeadingMag                   float32   `name:"Plane Heading Degrees Magnetic"`
 	Pitch                        float32   `name:"Plane Pitch Degrees"`
@@ -56,7 +56,11 @@ type Report struct {
 	FuelFlow                     float32   `name:"ESTIMATED FUEL FLOW" unit:"kilograms per second"`
 	AmbientTemperature           float32   `name:"Ambient Temperature" unit:"Celsius"`
 	AmbientPressure              float32   `name:"Ambient Pressure" unit:"inHg"`
-	Parked                       bool      `name:"Plane In Parking State"`
+	Parked                       int32     `name:"Plane In Parking State"`
+	Engine1Combustion            int32     `name:"General Eng Combustion:1" unit:"bool"`
+	Engine2Combustion            int32     `name:"General Eng Combustion:2" unit:"bool"`
+	Engine3Combustion            int32     `name:"General Eng Combustion:3" unit:"bool"`
+	Engine4Combustion            int32     `name:"General Eng Combustion:4" unit:"bool"`
 }
 
 type SetSimObjectDataExpose struct {

@@ -6,23 +6,27 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	simconnect_data "github.com/JRascagneres/Simconnect-Go/simconnect-data"
 )
 
 func TestExample(t *testing.T) {
 	instance, err := NewSimConnect("data")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	report, err := instance.GetReport()
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 
 	fmt.Printf("User Altitude: %f\n", report.Altitude)
+	fmt.Printf("Eng 1: %v\n", report.Engine1Combustion)
+	fmt.Printf("Eng 2: %v\n", report.Engine2Combustion)
+	fmt.Printf("Eng 3: %v\n", report.Engine3Combustion)
+	fmt.Printf("Eng 4: %v\n", report.Engine4Combustion)
 
 	err = instance.Close()
+	assert.NoError(t, err)
 }
 
 // These aren't 'real' tests. This is simply for testing easily within the game.
