@@ -63,6 +63,19 @@ type Report struct {
 	Engine3Combustion                 int32     `name:"General Eng Combustion:3" unit:"bool"`
 	Engine4Combustion                 int32     `name:"General Eng Combustion:4" unit:"bool"`
 	EngineCount                       int32     `name:"Number Of Engines"`
+
+	ADFStandbyFrequency1 float64 `name:"ADF STANDBY FREQUENCY:1" unit:"MHz"`
+	ADFActiveFrequency1  float64 `name:"ADF ACTIVE FREQUENCY:1" unit:"MHz"`
+	ADFStandbyFrequency2 float64 `name:"ADF STANDBY FREQUENCY:2" unit:"MHz"`
+	ADFActiveFrequency2  float64 `name:"ADF ACTIVE FREQUENCY:2" unit:"MHz"`
+	COMStandbyFrequency1 float64 `name:"COM STANDBY FREQUENCY:1" unit:"MHz"`
+	COMActiveFrequency1  float64 `name:"COM ACTIVE FREQUENCY:1" unit:"MHz"`
+	COMStandbyFrequency2 float64 `name:"COM STANDBY FREQUENCY:2" unit:"MHz"`
+	COMActiveFrequency2  float64 `name:"COM ACTIVE FREQUENCY:2" unit:"MHz"`
+	NAVStandbyFrequency1 float64 `name:"NAV STANDBY FREQUENCY:1" unit:"MHz"`
+	NAVActiveFrequency1  float64 `name:"NAV ACTIVE FREQUENCY:1" unit:"MHz"`
+	NAVStandbyFrequency2 float64 `name:"NAV STANDBY FREQUENCY:2" unit:"MHz"`
+	NAVActiveFrequency2  float64 `name:"NAV ACTIVE FREQUENCY:2" unit:"MHz"`
 }
 
 type SetSimObjectDataExpose struct {
@@ -90,6 +103,9 @@ var (
 	procSimconnectCreateEnrouteATCAircraft   *syscall.LazyProc
 	procSimconnectAISetAircraftFlightPlan    *syscall.LazyProc
 	procSimconnectAIRemoveObject             *syscall.LazyProc
+	procSimconnectMapClientEventToSimEvent   *syscall.LazyProc
+	procSimconnectSubscribeToSystemEvent     *syscall.LazyProc
+	procSimconnectTransmitClientEvent        *syscall.LazyProc
 )
 
 func (instance *SimconnectInstance) getDefinitionID(input interface{}) (defID uint32, created bool) {
@@ -106,6 +122,23 @@ func (instance *SimconnectInstance) getDefinitionID(input interface{}) (defID ui
 	}
 
 	return id, false
+}
+
+func (instance *SimconnectInstance) SubscribeToSystemEvent(eventID uint32, eventName string) error {
+	_eventName := []byte(eventName + "\x00")
+
+	args := []uintptr{
+		uintptr(instance.handle),
+		uintptr(eventID),
+		uintptr(unsafe.Pointer(&_eventName[0])),
+	}
+
+	r1, _, err := procSimconnectSubscribeToSystemEvent.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf("SimConnect_SubscribeToSystemEvent for %s error: %d %s", eventName, r1, err)
+	}
+
+	return nil
 }
 
 // Made request to DLL to actually register a data definition
@@ -352,6 +385,45 @@ func (instance *SimconnectInstance) GetReportOnObjectID(objectID uint32) (*Repor
 
 }
 
+func (instance *SimconnectInstance) processEventData(terminate <-chan struct{}) (<-chan simconnect_data.RecvEvent, <-chan error) {
+	recvEventChan := make(chan simconnect_data.RecvEvent, 1)
+	errorChan := make(chan error, 1)
+
+	go func() {
+	forLoop:
+		for {
+			select {
+			case <-terminate:
+				return
+			default:
+				ppData, recvInfo, err := instance.processData()
+				if err != nil {
+					continue
+				}
+				switch recvInfo.ID {
+				case simconnect_data.RECV_ID_EXCEPTION:
+					errorChan <- fmt.Errorf("received exception")
+					break forLoop
+				case simconnect_data.RECV_ID_EVENT:
+					recvOpen := *(*simconnect_data.RecvEvent)(ppData)
+					recvEventChan <- recvOpen
+					break forLoop
+				default:
+					errorChan <- fmt.Errorf("processConnectionOpenData() hit default")
+					break forLoop
+				}
+
+			}
+		}
+		close(recvEventChan)
+		close(errorChan)
+		return
+	}()
+
+	return recvEventChan, errorChan
+
+}
+
 func (instance *SimconnectInstance) openConnection(simconnectName string) error {
 	args := []uintptr{
 		uintptr(unsafe.Pointer(&instance.handle)),
@@ -583,21 +655,62 @@ func (instance *SimconnectInstance) RemoveAIObject(objectID, requestID uint32) e
 	return nil
 }
 
+func (instance *SimconnectInstance) MapClientEventToSimEvent(eventID uint32, eventName string) error {
+	_eventName := []byte(eventName + "\x00")
+
+	args := []uintptr{
+		uintptr(instance.handle),
+		uintptr(eventID),
+		uintptr(unsafe.Pointer(&_eventName[0])),
+	}
+
+	r1, _, err := procSimconnectMapClientEventToSimEvent.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf(
+			"SimConnect_MapClientEventToSimEvent for eventID %d error: %d %s",
+			eventID, r1, err,
+		)
+	}
+
+	return nil
+}
+
+func (instance *SimconnectInstance) TransmitClientID(eventID uint32, data uint32) error {
+	args := []uintptr{
+		uintptr(instance.handle),
+		uintptr(0),
+		uintptr(eventID),
+		uintptr(data),
+		uintptr(1),
+		uintptr(0x00000010),
+	}
+
+	r1, _, err := procSimconnectTransmitClientEvent.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf(
+			"SimConnect_TransmitClientEvent for eventID %d and data %d error: %d %s",
+			eventID, data, r1, err,
+		)
+	}
+
+	return nil
+}
+
+//go:embed "simconnect-data/SimConnect.dll"
+var simconnectDLLBytes []byte
+
 // NewSimConnect returns a new instance of SimConnect which will be used to call the methods.
 func NewSimConnect(simconnectName string) (*SimconnectInstance, error) {
 	dllPath := filepath.Join("simconnect-data", "SimConnect.dll")
 
 	if _, err := os.Stat(dllPath); os.IsNotExist(err) {
-		//go:embed "simconnect-data/SimConnect.dll"
-		var buf []byte
-
 		dir, err := ioutil.TempDir("", "")
 		if err != nil {
 			return nil, err
 		}
 		dllPath = filepath.Join(dir, "SimConnect.dll")
 
-		if err := ioutil.WriteFile(dllPath, buf, 0644); err != nil {
+		if err := ioutil.WriteFile(dllPath, simconnectDLLBytes, 0644); err != nil {
 			return nil, err
 		}
 	}
@@ -621,6 +734,9 @@ func NewSimConnect(simconnectName string) (*SimconnectInstance, error) {
 	procSimconnectCreateEnrouteATCAircraft = mod.NewProc("SimConnect_AICreateEnrouteATCAircraft")
 	procSimconnectAISetAircraftFlightPlan = mod.NewProc("SimConnect_AISetAircraftFlightPlan")
 	procSimconnectAIRemoveObject = mod.NewProc("SimConnect_AIRemoveObject")
+	procSimconnectMapClientEventToSimEvent = mod.NewProc("SimConnect_MapClientEventToSimEvent")
+	procSimconnectSubscribeToSystemEvent = mod.NewProc("SimConnect_SubscribeToSystemEvent")
+	procSimconnectTransmitClientEvent = mod.NewProc("SimConnect_TransmitClientEvent")
 
 	instance := SimconnectInstance{
 		nextDefinitionID: 0,
