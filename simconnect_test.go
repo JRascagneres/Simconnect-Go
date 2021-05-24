@@ -120,19 +120,39 @@ func TestRadioSet(t *testing.T) {
 
 	type Events struct {
 		SetComRadioHz uint32
+		SwapComRadio  uint32
+		Plus          uint32
+		Minus         uint32
 	}
 
 	events := &Events{
-		SetComRadioHz: 1,
+		SetComRadioHz: 10,
+		SwapComRadio:  20,
+		Plus:          60,
+		Minus:         70,
 	}
 
 	report, err = instance.GetReport()
 	assert.NoError(t, err)
 
-	err = instance.MapClientEventToSimEvent(events.SetComRadioHz, "COM_RADIO_SET_HZ")
+	err = instance.MapClientEventToSimEvent(events.SetComRadioHz, "COM_STBY_RADIO_SET_HZ")
 	require.NoError(t, err)
 
-	err = instance.TransmitClientID(events.SetComRadioHz, 124850000)
+	err = instance.MapClientEventToSimEvent(events.SwapComRadio, "COM_STBY_RADIO_SWAP")
 	require.NoError(t, err)
+
+	err = instance.MapClientEventToSimEvent(events.Plus, "COM_RADIO_FRACT_INC")
+	require.NoError(t, err)
+
+	err = instance.MapClientEventToSimEvent(events.Minus, "COM_RADIO_FRACT_DEC")
+	require.NoError(t, err)
+
+	err = instance.TransmitClientID(events.Plus, 0)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
+
+	err = instance.TransmitClientID(events.Minus, 0)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
 
 }

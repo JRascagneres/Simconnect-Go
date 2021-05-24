@@ -48,7 +48,9 @@ type Report struct {
 	GForce                            float32   `name:"G Force"`
 	VerticalSpeedRelativeToWorld      float32   `name:"Velocity World Y" unit:"Feet per second"`
 	VerticalSpeedAircraft             float32   `name:"Vertical Speed" unit:"Feet per second"`
-	VerticalSpeedPlaneTouchdownNormal float64   `name:"Plane Touchdown Normal Velocity"`
+	VerticalSpeedPlaneTouchdownNormal float64   `name:"Plane Touchdown Normal Velocity" unit:"Feet per second"`
+	Crosswind                         float64   `name:"Aircraft Wind X" unit:"Knots"`
+	Headwind                          float64   `name:"Aircraft Wind Z" unit:"Knots"`
 	FuelTotal                         float32   `name:"Fuel Total Quantity Weight" unit:"kg"`
 	WindSpeed                         float32   `name:"Ambient Wind Velocity" unit:"knot"`
 	WindDirection                     float32   `name:"Ambient Wind Direction" unit:"radians"`
