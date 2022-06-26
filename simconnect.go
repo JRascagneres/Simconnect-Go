@@ -737,6 +737,8 @@ func (instance *SimconnectInstance) TransmitClientID(eventID uint32, data uint32
 	return nil
 }
 
+// SendText will display a text notification in the simulator.
+// Note: This will only be shown if 'Software Tips' are set to 'on' in the Assistance Options in the case of MSFS
 func (instance *SimconnectInstance) SendText(eventID uint32, duration float64, textString string) error {
 	text := []byte(textString + "\x00")
 
