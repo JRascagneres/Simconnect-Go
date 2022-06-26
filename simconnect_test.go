@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -154,5 +155,82 @@ func TestRadioSet(t *testing.T) {
 	err = instance.TransmitClientID(events.Minus, 0)
 	require.NoError(t, err)
 	time.Sleep(2 * time.Second)
+}
 
+func TestAPAltitude(t *testing.T) {
+	instance, err := NewSimConnect(t.Name())
+	require.NoError(t, err)
+
+	type Events struct {
+		APAlt uint32
+	}
+
+	events := &Events{
+		APAlt: 10,
+	}
+
+	err = instance.MapClientEventToSimEvent(events.APAlt, "AP_ALT_VAR_SET_ENGLISH")
+	require.NoError(t, err)
+
+	err = instance.TransmitClientID(events.APAlt, 100)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second)
+}
+
+func TestAPReport(t *testing.T) {
+	instance, err := NewSimConnect(t.Name())
+	require.NoError(t, err)
+
+	apReport, err := instance.GetAPReport()
+	require.NoError(t, err)
+
+	fmt.Println(apReport.APAltSlot)
+}
+
+func TestCustomReport(t *testing.T) {
+	type CustomReport struct {
+		simconnect_data.RecvSimobjectDataByType
+		Title    [256]byte `name:"Title"`
+		Altitude float64   `name:"AUTOPILOT ALTITUDE LOCK VAR" unit:"feet"`
+	}
+
+	instance, err := NewSimConnect(t.Name())
+	require.NoError(t, err)
+
+	cReport := &CustomReport{}
+	err = instance.registerDataDefinition(cReport)
+	require.NoError(t, err)
+
+	definitionID, _ := instance.getDefinitionID(cReport)
+	err = instance.requestDataOnSimObjectType(definitionID, definitionID, 0, simconnect_data.SIMOBJECT_TYPE_USER)
+	require.NoError(t, err)
+
+	reportData, err := instance.processSimObjectTypeData()
+	require.NoError(t, err)
+
+	ptr := reportData.(unsafe.Pointer)
+	cReport = (*CustomReport)(ptr)
+
+	fmt.Println(cReport.Altitude)
+}
+
+func TestReport(t *testing.T) {
+	instance, err := NewSimConnect(t.Name())
+	require.NoError(t, err)
+
+	report, err := instance.GetReport()
+	require.NoError(t, err)
+
+	fmt.Println(report.Altitude)
+}
+
+func TestMessage(t *testing.T) {
+	instance, err := NewSimConnect(t.Name() + time.Now().String())
+	require.NoError(t, err)
+
+	err = instance.SendText(1, 1, time.Now().String())
+	assert.NoError(t, err)
+
+	err = instance.Close()
+	assert.NoError(t, err)
 }
