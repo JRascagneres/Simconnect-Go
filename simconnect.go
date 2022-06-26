@@ -80,6 +80,13 @@ type Report struct {
 	NAVActiveFrequency2  float64 `name:"NAV ACTIVE FREQUENCY:2" unit:"MHz"`
 }
 
+type APReport struct {
+	simconnect_data.RecvSimobjectDataByType
+	Title         [256]byte `name:"Title"`
+	APSelectedAlt float64   `name:"AUTOPILOT ALTITUDE LOCK VAR:3" unit:"feet"`
+	APAltSlot     int32     `name:"AUTOPILOT ALTITUDE SLOT INDEX" unit:"number"`
+}
+
 type SetSimObjectDataExpose struct {
 	Airspeed  float64
 	Altitude  float64
@@ -108,6 +115,7 @@ var (
 	procSimconnectMapClientEventToSimEvent   *syscall.LazyProc
 	procSimconnectSubscribeToSystemEvent     *syscall.LazyProc
 	procSimconnectTransmitClientEvent        *syscall.LazyProc
+	procSimconnectText                       *syscall.LazyProc
 )
 
 func (instance *SimconnectInstance) getDefinitionID(input interface{}) (defID uint32, created bool) {
@@ -265,7 +273,7 @@ func (instance *SimconnectInstance) processData() (unsafe.Pointer, *simconnect_d
 	var ppData unsafe.Pointer
 	var err error
 	var recvInfo *simconnect_data.Recv
-	loopErr := retryFunc(20, time.Millisecond*20, func() (bool, error) {
+	loopErr := retryFunc(20, time.Millisecond*100, func() (bool, error) {
 
 		ppData, err = instance.getData()
 		if err != nil {
@@ -323,7 +331,12 @@ func (instance *SimconnectInstance) processSimObjectTypeData() (interface{}, err
 		case instance.definitionMap["Report"]:
 			report2 := (*Report)(ppData)
 			return report2, nil
+		case instance.definitionMap["APReport"]:
+			report2 := (*APReport)(ppData)
+			return report2, nil
 		}
+
+		break
 	case simconnect_data.RECV_ID_SIMOBJECT_DATA:
 		report2 := (*Report)(ppData)
 		return report2, nil
@@ -332,10 +345,10 @@ func (instance *SimconnectInstance) processSimObjectTypeData() (interface{}, err
 		return recvData.ObjectID, nil
 	default:
 		recvData := *(*simconnect_data.RecvSimobjectDataByType)(ppData)
-		return nil, fmt.Errorf("processSimObjectTypeData() hit default recvInfo: %v ppData: %+v", recvInfo, recvData)
+		return ppData, fmt.Errorf("processSimObjectTypeData() hit default recvInfo: %v ppData: %+v", recvInfo, recvData)
 	}
 
-	return nil, fmt.Errorf("FAIL")
+	return ppData, fmt.Errorf("Unknown format")
 }
 
 // GetReport returns Report struct containing current user data
@@ -362,6 +375,32 @@ func (instance *SimconnectInstance) GetReport() (*Report, error) {
 	}
 
 	return reportData.(*Report), nil
+}
+
+// GetAPReport returns APReport struct containing current user data
+func (instance *SimconnectInstance) GetAPReport() (*APReport, error) {
+	report := &APReport{}
+	err := instance.registerDataDefinition(report)
+	if err != nil {
+		return nil, err
+	}
+	definitionID, _ := instance.getDefinitionID(report)
+	err = instance.requestDataOnSimObjectType(
+		definitionID,
+		definitionID,
+		0,
+		simconnect_data.SIMOBJECT_TYPE_USER,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	reportData, err := instance.processSimObjectTypeData()
+	if err != nil {
+		return nil, err
+	}
+
+	return reportData.(*APReport), nil
 }
 
 // GetReportOnObjectID returns a Report struct containing the data for the Object ID passed in
@@ -698,6 +737,25 @@ func (instance *SimconnectInstance) TransmitClientID(eventID uint32, data uint32
 	return nil
 }
 
+func (instance *SimconnectInstance) SendText(eventID uint32, duration float64, textString string) error {
+	text := []byte(textString + "\x00")
+
+	args := []uintptr{
+		uintptr(instance.handle),
+		uintptr(uint32(0x101)), // text type
+		uintptr(duration),      // duration
+		uintptr(eventID),       // event ID
+		uintptr(uint32(len(text))),
+		uintptr(unsafe.Pointer(&text[0])),
+	}
+
+	r1, _, err := procSimconnectText.Call(args...)
+	if int32(r1) < 0 {
+		return fmt.Errorf("SimConnect_Text for eventID %d and data %s error: %d %v", eventID, textString, r1, err)
+	}
+	return nil
+}
+
 //go:embed "simconnect-data/SimConnect.dll"
 var simconnectDLLBytes []byte
 
@@ -739,9 +797,10 @@ func NewSimConnect(simconnectName string) (*SimconnectInstance, error) {
 	procSimconnectMapClientEventToSimEvent = mod.NewProc("SimConnect_MapClientEventToSimEvent")
 	procSimconnectSubscribeToSystemEvent = mod.NewProc("SimConnect_SubscribeToSystemEvent")
 	procSimconnectTransmitClientEvent = mod.NewProc("SimConnect_TransmitClientEvent")
+	procSimconnectText = mod.NewProc("SimConnect_Text")
 
 	instance := SimconnectInstance{
-		nextDefinitionID: 0,
+		nextDefinitionID: 1,
 		definitionMap:    map[string]uint32{},
 	}
 

@@ -49,7 +49,7 @@ func retryFunc(maxRetryCount int, waitDuration time.Duration, dataFunc func() (b
 
 		numAttempts++
 
-		if numAttempts == maxRetryCount {
+		if numAttempts >= maxRetryCount {
 			return errors.New("timeout exceeded err")
 		}
 
