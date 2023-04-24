@@ -29,19 +29,31 @@ and import with
 ## Very Simple Usage
 Very simple example which starts the connection, grabs the current user data and closes the connection.
 ```
-instance, err := NewSimConnect()
-if err != nil {
-    panic(err)
+package main
+
+import (
+	"fmt"
+
+	simconnect "github.com/JRascagneres/Simconnect-Go"
+)
+
+func main() {
+	instance, err := simconnect.NewSimConnect("Simconnect-Go")
+	if err != nil {
+		panic(err)
+	}
+
+	report, err := instance.GetReport()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("User Altitude: %f\n", report.Altitude)
+
+	if err := instance.Close(); err != nil {
+		panic(err)
+	}
 }
-
-report, err := instance.GetReport()
-if err != nil {
-    panic(err)
-}
-
-fmt.Printf("User Altitude: %f\n", report.Altitude)
-
-err = instance.Close()
 ```
 
 ## Documentation
