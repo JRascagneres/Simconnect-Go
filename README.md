@@ -2,7 +2,7 @@
 
 This Simconnect library is used to communicate with primary Microsoft Flight Simulator 2020 using Golang. However, given its use of the SimConnect API it should be able to communicate with other flight simulators whcih also support the SimConnect API.
 
-This attempts to be a little more of a high-level library attempting to abstract much of the SimConnect complexity from the user. 
+This attempts to be a little more of a high-level library attempting to abstract much of the SimConnect complexity from the user.
 
 ## Status
 
@@ -22,12 +22,12 @@ The current version is considered an early release and will therefore keep chang
 
 ## Install
 
-`go get -u github.com/JRascagneres/Simconnect-Go`  
-and import with  
+`go get -u github.com/JRascagneres/Simconnect-Go`
+and import with
 `import (simconnect "github.com/JRascagneres/Simconnect-Go")`
 
 ## Very Simple Usage
-Very simple example which starts the connection, grabs the current user data and closes the connection.  
+Very simple example which starts the connection, grabs the current user data and closes the connection.
 ```
 instance, err := NewSimConnect()
 if err != nil {
